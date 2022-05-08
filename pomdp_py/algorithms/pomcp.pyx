@@ -17,7 +17,7 @@ is completed. I have previously implemented this version.
 This version is also implemented in BasicPOMCP.jl
 (https://github.com/JuliaPOMDP/BasicPOMCP.jl)
 The two should be EQUIVALENT. In general, it doesn't
-hurt to do the belief update during MCTS, a feature
+hurt to do the belief update d(None, None)uring MCTS, a feature
 of using particle representation.
 """
 

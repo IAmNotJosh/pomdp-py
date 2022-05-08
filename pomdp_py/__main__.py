@@ -5,7 +5,8 @@ available_problems = [
     'rocksample',
     'mos',
     'tag',
-    'load_unload'
+    'load_unload',
+    'spot_tables'
 ]
 
 def parse_args():
@@ -37,6 +38,9 @@ if __name__ == "__main__":
 
         elif args.run.lower() == "load_unload":
             from pomdp_problems.load_unload.load_unload import main
+            main()
+        elif args.run.lower() == "spot_tables":
+            from pomdp_problems.spot_tables.spot_tables_problem import main
             main()
 
         else:

@@ -154,6 +154,7 @@ class RSTransitionModel(pomdp_py.TransitionModel):
 
     """ The model is deterministic """
 
+
     def __init__(self, n, rock_locs, in_exit_area):
         """
         rock_locs: a map from (x,y) location to rock_id

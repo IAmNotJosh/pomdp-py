@@ -141,6 +141,7 @@ class _NodePP:
                          key=lambda edge: similar(str(edge), key))
             if similar(str(chosen), key) >= SIMILAR_THRESH:
                 return chosen
+
         raise ValueError("Cannot access children with key {}".format(key))
 
     def __getitem__(self, key):

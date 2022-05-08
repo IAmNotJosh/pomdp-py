@@ -334,6 +334,7 @@ cdef class POUCT(Planner):
     cpdef _simulate(POUCT self,
                     State state, tuple history, VNode root, QNode parent,
                     Observation observation, int depth):
+
         if depth > self._max_depth:
             return 0
         if root is None:
@@ -344,6 +345,7 @@ cdef class POUCT(Planner):
                     raise ValueError("Unable to plan for the given history.")
             else:
                 root = self._VNode()
+
             if parent is not None:
                 parent[observation] = root
             self._expand_vnode(root, history, state=state)
@@ -365,6 +367,7 @@ cdef class POUCT(Planner):
                                                                                root[action],
                                                                                observation,
                                                                                depth+nsteps)
+
         root.num_visits += 1
         root[action].num_visits += 1
         root[action].value = root[action].value + (total_reward - root[action].value) / (root[action].num_visits)
