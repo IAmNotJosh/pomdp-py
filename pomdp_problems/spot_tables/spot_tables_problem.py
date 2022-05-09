@@ -284,9 +284,11 @@ class STRewardModel(pomdp_py.RewardModel):
                 else:
                     return -10
         if not state.b1.region == "hand" and next_state.b1.region == "hand":
-            return 10
+            return 2
         if not state.b2.region == "hand" and next_state.b2.region == "hand":
-            return -10
+            return -2
+        if not next_state.b1.region == "hand" and not next_state.b2.region == "hand" and isinstance(action, PickAction):
+            return -2
         # if isinstance(action, ISMAction):
         #     return -.1
         return -1
