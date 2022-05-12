@@ -49,7 +49,7 @@ class BottlePose():
         return hash((self.pos[0], self.pos[1], self.region))
 
     def __str__(self):
-        return "pos: ({}, {}), region: {}".format(self.pos[0], self.pos[1], self.region)
+        return "region: {}".format(self.region)
 
 
 class State(pomdp_py.State):
