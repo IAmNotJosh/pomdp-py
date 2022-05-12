@@ -9,8 +9,8 @@ import copy
 
 EPSILON = 1e-12
 
-TABLE_X = 5
-TABLE_Y = 5
+TABLE_X = 2
+TABLE_Y = 2
 TABLE_DIM = np.array([TABLE_X, TABLE_Y])
 PICK_TOLERANCE = 0.1
 
@@ -20,14 +20,14 @@ class BottlePose():
     def random():
         x, y = np.random.randint(0, TABLE_DIM, size=2)
         # TODO should this include hand
-        # region = random.sample(["table 1", "table 2", "table 3"], 1)[0]
-        region = random.sample(["table 1", "table 2"], 1)[0]
+        region = random.sample(["table 1", "table 2", "table 3"], 1)[0]
+        # region = random.sample(["table 1", "table 2"], 1)[0]
         return BottlePose(x, y, region)
 
     @staticmethod
     def get_bottle_regions():
-        # return ["hand", "table 1", "table 2", "table 3"]
-        return ["hand", "table 1", "table 2"]
+        return ["hand", "table 1", "table 2", "table 3"]
+        # return ["hand", "table 1", "table 2"]
 
     @staticmethod
     def get_all_bottle_poses():
@@ -53,7 +53,7 @@ class BottlePose():
 
 
 class State(pomdp_py.State):
-    def __init__(self, position, b1, b2, terminal=False):
+    def __init__(self, position, b1, b2, b1k, b2k, terminal=False):
         """
         position: one of "home", "table 1", "table 2", "table 3"
         b1, b2: BottlePose
@@ -61,17 +61,20 @@ class State(pomdp_py.State):
         self.position = position
         self.b1 = b1
         self.b2 = b2
-        self.terminal = self.position == "home" and (self.b1.region == "hand" or self.b2.region == "hand")
+        self.b1k = b1k
+        self.b2k = b2k
+        self.terminal = terminal
+            # self.position == "home" and (self.b1.region == "hand" or self.b2.region == "hand")
 
 
     @staticmethod
     def get_all_positions():
-        return ["home", "table 1", "table 2"]
-        # return ["home", "table 1", "table 2", "table 3"]
+        # return ["home", "table 1", "table 2"]
+        return ["home", "table 1", "table 2", "table 3"]
 
     def is_terminal(self):
-        return self.terminal
-            # self.position == "home" and (self.b1.region == "hand" or self.b2.region == "hand")
+        # return self.terminal
+        return self.position == "home" and (self.b1.region == "hand" or self.b2.region == "hand")
 
     def __hash__(self):
         return hash((self.position, self.b1, self.b2))
@@ -80,7 +83,9 @@ class State(pomdp_py.State):
         if isinstance(other, State):
             return self.position == other.position \
                    and self.b1 == other.b1 \
-                   and self.b2 == other.b2
+                   and self.b2 == other.b2 \
+                   and self.b1k == other.b1k \
+                   and self.b2k == other.b2k
         else:
             return False
 
@@ -88,7 +93,7 @@ class State(pomdp_py.State):
         return self.__repr__()
 
     def __repr__(self):
-        return "State(%s | %s | %s)" % (str(self.position), str(self.b1), str(self.b2))
+        return "State(%s | %s | %s | %s | %s)" % (str(self.position), str(self.b1), str(self.b2), str(self.b1k), str(self.b2k))
 
 
 class Action(pomdp_py.Action):
@@ -216,10 +221,12 @@ class STObservationModel(pomdp_py.ObservationModel):
 class STTransitionModel(pomdp_py.TransitionModel):
     """ The model is deterministic """
     # this doesnot curently work for bottles on the same table
-    _states = [State(position, b1, b2)
+    _states = [State(position, b1, b2, b1k, b2k)
                for position in State.get_all_positions()
                for b1 in BottlePose.get_all_bottle_poses()
-               for b2 in BottlePose.get_all_bottle_poses()]
+               for b2 in BottlePose.get_all_bottle_poses()
+               for b1k in [True, False]
+               for b2k in [True, False]]
     print(len(_states))
     _states = [s for s in _states if s.b1 != s.b2]
     print(len(_states))
@@ -245,6 +252,9 @@ class STTransitionModel(pomdp_py.TransitionModel):
         next_position = state.position
         next_b1_region = state.b1.region
         next_b2_region = state.b2.region
+        next_b1k = state.b1k
+        next_b2k = state.b2k
+
         if action == MoveT1:
             next_position = 'table 1'
         elif action == MoveT2:
@@ -258,15 +268,23 @@ class STTransitionModel(pomdp_py.TransitionModel):
             if state.b1.region == "hand" or state.b2.region == "hand":
                 pass
             elif (state.b1.region == state.position and
-                  np.linalg.norm(action.pick_pos - state.b1.pos) <= PICK_TOLERANCE):
+                  np.linalg.norm(action.pick_pos - state.b1.pos) <= PICK_TOLERANCE and
+                  state.b1k):
                 next_b1_region = "hand"
             elif (state.b2.region == state.position and
-                  np.linalg.norm(action.pick_pos - state.b2.pos) <= PICK_TOLERANCE):
+                  np.linalg.norm(action.pick_pos - state.b2.pos) <= PICK_TOLERANCE and
+                  state.b2k):
                 next_b2_region = "hand"
+        elif isinstance(action, ISMAction):
+            if state.b1.region == state.position:
+                next_b1k = True
+            if state.b2.region == state.position:
+                next_b2k = True
+
 
         next_b1 = BottlePose(state.b1.pos[0], state.b1.pos[1], next_b1_region)
         next_b2 = BottlePose(state.b2.pos[0], state.b2.pos[1], next_b2_region)
-        return State(next_position, next_b1, next_b2)
+        return State(next_position, next_b1, next_b2, next_b1k, next_b2k)
 
 
 class STRewardModel(pomdp_py.RewardModel):
@@ -305,7 +323,7 @@ class STPolicyModel(pomdp_py.RolloutPolicy):
 
     def __init__(self):
         pick_actions = set({PickAction(x, y) for x in range(TABLE_X) for y in range(TABLE_Y)})
-        self._move_actions = {MoveT1, MoveT2, MoveHome}
+        self._move_actions = {MoveT1, MoveT2, MoveT3, MoveHome}
         self._pick_actions = pick_actions
         self._all_actions = self._pick_actions | self._move_actions | {ISMAction()}
         print(self._all_actions)
@@ -329,6 +347,8 @@ class STPolicyModel(pomdp_py.RolloutPolicy):
     def get_possible_action_types(self, state):
         if state.position == "home" or state.b1.region == "hand" or state.b2.region == "hand":
             return ["move"]
+        if not state.b1k:
+            return ["move", "ism"]
         else:
             return ["move", "ism", "pick"]
 
@@ -373,7 +393,7 @@ class SpotTableProblem(pomdp_py.POMDP):
                np.linalg.norm(b2.pos - b1.pos) <= PICK_TOLERANCE):
             b2 = BottlePose.random()
 
-        return State("home", b1, b2)
+        return State("home", b1, b2, False, False)
 
     def is_terminal(self):
         return self.env.state.is_terminal()
@@ -421,7 +441,7 @@ def test_planner(spot_table_problem, planner, nsteps=3, discount=0.9):
         print("Reward (Cumulative): %s" % str(total_reward))
         print("Reward (Cumulative Discounted): %s" % str(total_discounted_reward))
         dbg = pomdp_py.TreeDebugger(spot_table_problem.agent.tree)
-        dbg.p()
+        # dbg.p()
         dbg.mbp
         if isinstance(planner, pomdp_py.POUCT):
             print("__num_sims__: %d" % planner.last_num_sims)
@@ -462,11 +482,11 @@ def main():
     spot_table_problem.print_state()
 
     print("*** Testing POMCP ***")
-    pomcp = pomdp_py.POMCP(max_depth=4, discount_factor=0.9,
-                           num_sims=80000, exploration_const=1,
+    pomcp = pomdp_py.POMCP(max_depth=4, discount_factor=0.99,
+                           num_sims=10000, exploration_const=1,
                            rollout_policy=spot_table_problem.agent.policy_model)
     # valueit = pomdp_py.ValueIteration(2, epsilon=1e-3)
-    tt, ttd = test_planner(spot_table_problem, pomcp, nsteps=100, discount=0.9)
+    tt, ttd = test_planner(spot_table_problem, pomcp, nsteps=100, discount=0.99)
 
 
 if __name__ == '__main__':
