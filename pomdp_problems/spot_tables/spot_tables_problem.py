@@ -137,11 +137,11 @@ MoveHome = MoveAction(MoveAction.HOME, "home")
 
 
 class PickAction(Action):
-    def __init__(self, x, y):
-        if x > TABLE_DIM[0] or x < 0 or y > TABLE_DIM[1] or y < 0:
-            raise ValueError("Invalid pick location ({}, {})".format(x, y))
-        self.pick_pos = np.array([x, y])
-        super().__init__("pick-{}-{}".format(x, y))
+    def __init__(self):
+        # if x > TABLE_DIM[0] or x < 0 or y > TABLE_DIM[1] or y < 0:
+        #     raise ValueError("Invalid pick location ({}, {})".format(x, y))
+        # self.pick_pos = np.array([x, y])
+        super().__init__("pick")
 
 
 class ISMAction(Action):
@@ -268,11 +268,9 @@ class STTransitionModel(pomdp_py.TransitionModel):
             if state.b1.region == "hand" or state.b2.region == "hand":
                 pass
             elif (state.b1.region == state.position and
-                  np.linalg.norm(action.pick_pos - state.b1.pos) <= PICK_TOLERANCE and
                   state.b1k):
                 next_b1_region = "hand"
             elif (state.b2.region == state.position and
-                  np.linalg.norm(action.pick_pos - state.b2.pos) <= PICK_TOLERANCE and
                   state.b2k):
                 next_b2_region = "hand"
         elif isinstance(action, ISMAction):
@@ -322,9 +320,8 @@ class STPolicyModel(pomdp_py.RolloutPolicy):
     """Simple policy model according to problem description."""
 
     def __init__(self):
-        pick_actions = set({PickAction(x, y) for x in range(TABLE_X) for y in range(TABLE_Y)})
         self._move_actions = {MoveT1, MoveT2, MoveT3, MoveHome}
-        self._pick_actions = pick_actions
+        self._pick_actions = {PickAction()}
         self._all_actions = self._pick_actions | self._move_actions | {ISMAction()}
         print(self._all_actions)
 
