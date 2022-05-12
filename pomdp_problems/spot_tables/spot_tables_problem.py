@@ -53,16 +53,16 @@ class BottlePose():
 
 
 class State(pomdp_py.State):
-    def __init__(self, position, b1, b2, b1k, b2k, terminal=False):
+    def __init__(self, position, b1, b1k, terminal=False):
         """
         position: one of "home", "table 1", "table 2", "table 3"
         b1, b2: BottlePose
         """
         self.position = position
         self.b1 = b1
-        self.b2 = b2
+        # self.b2 = b2
         self.b1k = b1k
-        self.b2k = b2k
+        # self.b2k = b2k
         self.terminal = terminal
             # self.position == "home" and (self.b1.region == "hand" or self.b2.region == "hand")
 
@@ -74,18 +74,18 @@ class State(pomdp_py.State):
 
     def is_terminal(self):
         # return self.terminal
-        return self.position == "home" and (self.b1.region == "hand" or self.b2.region == "hand")
+        return self.position == "home" and self.b1.region == "hand"
 
     def __hash__(self):
-        return hash((self.position, self.b1, self.b2))
+        return hash((self.position, self.b1))
 
     def __eq__(self, other):
         if isinstance(other, State):
             return self.position == other.position \
                    and self.b1 == other.b1 \
-                   and self.b2 == other.b2 \
-                   and self.b1k == other.b1k \
-                   and self.b2k == other.b2k
+                   and self.b1k == other.b1k
+                   # and self.b2 == other.b2 \
+                   # and self.b2k == other.b2k
         else:
             return False
 
@@ -93,7 +93,7 @@ class State(pomdp_py.State):
         return self.__repr__()
 
     def __repr__(self):
-        return "State(%s | %s | %s | %s | %s)" % (str(self.position), str(self.b1), str(self.b2), str(self.b1k), str(self.b2k))
+        return "State(%s | %s | %s )" % (str(self.position), str(self.b1), str(self.b1k))
 
 
 class Action(pomdp_py.Action):
@@ -150,28 +150,28 @@ class ISMAction(Action):
 
 
 class Observation(pomdp_py.Observation):
-    def __init__(self, b1, b2, hand_full):
+    def __init__(self, b1, hand_full):
         """
         b1, b2: pose of bottle (might be None)
         """
         self.b1 = b1
-        self.b2 = b2
+        # self.b2 = b2
         self.hand_full = hand_full
 
     def __hash__(self):
-        return hash((self.b1, self.b2, self.hand_full))
+        return hash((self.b1, self.hand_full))
 
     def __eq__(self, other):
         if isinstance(other, Observation):
-            return self.b1 == other.b1 and self.b2 == other.b2 and self.hand_full == other.hand_full
+            return self.b1 == other.b1 and self.hand_full == other.hand_full
         elif type(other) == str:
             return str(self) == other
 
     def __str__(self):
-        return str("({}, {}, {})".format(self.b1, self.b2, self.hand_full))
+        return str("({}, {})".format(self.b1, self.hand_full))
 
     def __repr__(self):
-        return str("({}, {}, {})".format(self.b1, self.b2, self.hand_full))
+        return str("({}, {})".format(self.b1, self.hand_full))
 
 
 class STObservationModel(pomdp_py.ObservationModel):
@@ -197,21 +197,20 @@ class STObservationModel(pomdp_py.ObservationModel):
         #     b1 = next_state.b1
         #     b2 = next_state.b2
         #     return Observation(b1, b2)
-        hand_full = next_state.b1.region == "hand" or next_state.b2.region == "hand"
+        hand_full = next_state.b1.region == "hand"
         if isinstance(action, ISMAction):
             position = next_state.position
             b1 = None
-            b2 = None
             if hand_full:
-                return Observation(None, None, hand_full)
+                return Observation(None, hand_full)
 
             if next_state.b1.region == position:
                 b1 = next_state.b1
-            if next_state.b2.region == position:
-                b2 = next_state.b2
-            return Observation(b1, b2, hand_full)
+            # if next_state.b2.region == position:
+            #     b2 = next_state.b2
+            return Observation(b1, hand_full)
 
-        return Observation(None, None, hand_full)
+        return Observation(None, hand_full)
 
     def argmax(self, next_state, action):
         """Returns the most likely observation"""
@@ -221,14 +220,12 @@ class STObservationModel(pomdp_py.ObservationModel):
 class STTransitionModel(pomdp_py.TransitionModel):
     """ The model is deterministic """
     # this doesnot curently work for bottles on the same table
-    _states = [State(position, b1, b2, b1k, b2k)
+    _states = [State(position, b1, b1k)
                for position in State.get_all_positions()
                for b1 in BottlePose.get_all_bottle_poses()
-               for b2 in BottlePose.get_all_bottle_poses()
-               for b1k in [True, False]
-               for b2k in [True, False]]
+               for b1k in [True, False]]
     print(len(_states))
-    _states = [s for s in _states if s.b1 != s.b2]
+    _states = [s for s in _states]
     print(len(_states))
 
     def __init__(self):
@@ -251,9 +248,7 @@ class STTransitionModel(pomdp_py.TransitionModel):
 
         next_position = state.position
         next_b1_region = state.b1.region
-        next_b2_region = state.b2.region
         next_b1k = state.b1k
-        next_b2k = state.b2k
 
         if action == MoveT1:
             next_position = 'table 1'
@@ -265,24 +260,20 @@ class STTransitionModel(pomdp_py.TransitionModel):
             next_position = 'home'
 
         elif isinstance(action, PickAction):
-            if state.b1.region == "hand" or state.b2.region == "hand":
+            if state.b1.region == "hand":
                 pass
             elif (state.b1.region == state.position and
                   state.b1k):
                 next_b1_region = "hand"
-            elif (state.b2.region == state.position and
-                  state.b2k):
-                next_b2_region = "hand"
+
         elif isinstance(action, ISMAction):
             if state.b1.region == state.position:
                 next_b1k = True
-            if state.b2.region == state.position:
-                next_b2k = True
+
 
 
         next_b1 = BottlePose(state.b1.pos[0], state.b1.pos[1], next_b1_region)
-        next_b2 = BottlePose(state.b2.pos[0], state.b2.pos[1], next_b2_region)
-        return State(next_position, next_b1, next_b2, next_b1k, next_b2k)
+        return State(next_position, next_b1, next_b1k)
 
 
 class STRewardModel(pomdp_py.RewardModel):
@@ -301,9 +292,8 @@ class STRewardModel(pomdp_py.RewardModel):
                     return -10
         if not state.b1.region == "hand" and next_state.b1.region == "hand":
             return 2
-        if not state.b2.region == "hand" and next_state.b2.region == "hand":
-            return -2
-        if not next_state.b1.region == "hand" and not next_state.b2.region == "hand" and isinstance(action, PickAction):
+
+        if not next_state.b1.region == "hand" and isinstance(action, PickAction):
             return -2
         # if isinstance(action, ISMAction):
         #     return -.1
@@ -342,7 +332,7 @@ class STPolicyModel(pomdp_py.RolloutPolicy):
         return random.sample(avaiable_actions, 1)[0]
 
     def get_possible_action_types(self, state):
-        if state.position == "home" or state.b1.region == "hand" or state.b2.region == "hand":
+        if state.position == "home" or state.b1.region == "hand":
             return ["move"]
         if not state.b1k:
             return ["move", "ism"]
@@ -384,13 +374,13 @@ class SpotTableProblem(pomdp_py.POMDP):
     def get_random_init_state():
         """Returns init_state and rock locations for an instance of RockSample(n,k)"""
         b1 = BottlePose.random()
-        b2 = BottlePose.random()
+        # b2 = BottlePose.random()
 
-        while (b2.region == b1.region and
-               np.linalg.norm(b2.pos - b1.pos) <= PICK_TOLERANCE):
-            b2 = BottlePose.random()
+        # while (b2.region == b1.region and
+        #        np.linalg.norm(b2.pos - b1.pos) <= PICK_TOLERANCE):
+        #     b2 = BottlePose.random()
 
-        return State("home", b1, b2, False, False)
+        return State("home", b1, False)
 
     def is_terminal(self):
         return self.env.state.is_terminal()
