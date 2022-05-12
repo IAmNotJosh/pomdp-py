@@ -427,9 +427,9 @@ def test_planner(spot_table_problem, planner, nsteps=3, discount=0.9):
         print("Reward: %s" % str(env_reward))
         print("Reward (Cumulative): %s" % str(total_reward))
         print("Reward (Cumulative Discounted): %s" % str(total_discounted_reward))
-        dbg = pomdp_py.TreeDebugger(spot_table_problem.agent.tree)
+        # dbg = pomdp_py.TreeDebugger(spot_table_problem.agent.tree)
         # dbg.p()
-        dbg.mbp
+        # dbg.mbp
         if isinstance(planner, pomdp_py.POUCT):
             print("__num_sims__: %d" % planner.last_num_sims)
             print("__plan_time__: %.5f" % planner.last_planning_time)
